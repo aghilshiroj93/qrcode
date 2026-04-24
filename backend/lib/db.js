@@ -1,6 +1,7 @@
 import { sql } from '@vercel/postgres';
 import bcrypt from 'bcryptjs';
 
+// Force refresh deployment - v2
 export const initDb = async () => {
   // Create Tables
   await sql`
@@ -37,7 +38,7 @@ export const initDb = async () => {
   const adminPassword = 'admin123';
   const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
-  // Use UPSERT logic (Insert or Update if exists)
+  // Use UPSERT logic
   await sql`
     INSERT INTO users (username, password, role) 
     VALUES (${adminUsername}, ${hashedPassword}, 'admin')
@@ -45,7 +46,7 @@ export const initDb = async () => {
     DO UPDATE SET password = ${hashedPassword}
   `;
   
-  console.log('Admin user forced/updated successfully');
+  console.log('Database initialized with forced refresh');
 };
 
 export default sql;
