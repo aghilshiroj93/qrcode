@@ -3,42 +3,45 @@ import sql from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-qr-pro-2026';
-
-export async function POST(request) {
+export async function POST(req) {
   try {
-    const { username, password } = await request.json();
+    const { username, password } = await req.json();
 
-    const { rows } = await sql`SELECT * FROM users WHERE username = ${username}`;
-    const user = rows[0];
-
-    if (!user) {
-      return NextResponse.json({ error: 'Username atau password salah' }, { status: 401 });
+    if (!username || !password) {
+      return NextResponse.json({ error: 'Username and password are required' }, { status: 400 });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    const { rows } = await sql`SELECT * FROM users WHERE username = ${username}`;
+    
+    if (rows.length === 0) {
+      return NextResponse.json({ error: 'DEBUG: User not found in database' }, { status: 401 });
+    }
 
-    if (!isMatch) {
-      return NextResponse.json({ error: 'Username atau password salah' }, { status: 401 });
+    const user = rows[0];
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return NextResponse.json({ error: 'DEBUG: Password does not match' }, { status: 401 });
+    }
+
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      return NextResponse.json({ error: 'DEBUG: JWT_SECRET is missing in server environment' }, { status: 500 });
     }
 
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
-      JWT_SECRET,
+      secret,
       { expiresIn: '1d' }
     );
 
-    return NextResponse.json({ 
-      message: 'Login berhasil',
+    return NextResponse.json({
+      message: 'Login successful',
       token,
-      user: {
-        id: user.id,
-        username: user.username,
-        role: user.role
-      }
+      user: { id: user.id, username: user.username, role: user.role }
     });
-
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Login error:', error);
+    return NextResponse.json({ error: 'Server error: ' + error.message }, { status: 500 });
   }
 }
