@@ -2,7 +2,7 @@ import { sql } from '@vercel/postgres';
 import bcrypt from 'bcryptjs';
 
 export const initDb = async () => {
-  // Create Members Table
+  // Create Tables
   await sql`
     CREATE TABLE IF NOT EXISTS members (
       id SERIAL PRIMARY KEY,
@@ -14,7 +14,6 @@ export const initDb = async () => {
     )
   `;
 
-  // Create Users Table
   await sql`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
@@ -25,7 +24,6 @@ export const initDb = async () => {
     )
   `;
 
-  // Create Scans Table
   await sql`
     CREATE TABLE IF NOT EXISTS scans (
       id SERIAL PRIMARY KEY,
@@ -34,20 +32,20 @@ export const initDb = async () => {
     )
   `;
 
-  // AUTO-SEED ADMIN USER
+  // FORCE SEED/UPDATE ADMIN USER
   const adminUsername = 'admin';
   const adminPassword = 'admin123';
   const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
-  // Check if admin exists, if not, create it
-  const { rows } = await sql`SELECT * FROM users WHERE username = ${adminUsername}`;
-  if (rows.length === 0) {
-    await sql`
-      INSERT INTO users (username, password, role) 
-      VALUES (${adminUsername}, ${hashedPassword}, 'admin')
-    `;
-    console.log('Admin user seeded during initDb');
-  }
+  // Use UPSERT logic (Insert or Update if exists)
+  await sql`
+    INSERT INTO users (username, password, role) 
+    VALUES (${adminUsername}, ${hashedPassword}, 'admin')
+    ON CONFLICT (username) 
+    DO UPDATE SET password = ${hashedPassword}
+  `;
+  
+  console.log('Admin user forced/updated successfully');
 };
 
 export default sql;
