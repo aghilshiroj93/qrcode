@@ -1,8 +1,5 @@
 import { sql } from '@vercel/postgres';
-
-// Note: In development, you can use a local Postgres or 
-// keep using SQLite by wrapping this in a conditional.
-// For now, we are migrating to the Vercel-ready PostgreSQL pattern.
+import bcrypt from 'bcryptjs';
 
 export const initDb = async () => {
   // Create Members Table
@@ -36,6 +33,21 @@ export const initDb = async () => {
       scanned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `;
+
+  // AUTO-SEED ADMIN USER
+  const adminUsername = 'admin';
+  const adminPassword = 'admin123';
+  const hashedPassword = await bcrypt.hash(adminPassword, 10);
+
+  // Check if admin exists, if not, create it
+  const { rows } = await sql`SELECT * FROM users WHERE username = ${adminUsername}`;
+  if (rows.length === 0) {
+    await sql`
+      INSERT INTO users (username, password, role) 
+      VALUES (${adminUsername}, ${hashedPassword}, 'admin')
+    `;
+    console.log('Admin user seeded during initDb');
+  }
 };
 
 export default sql;
